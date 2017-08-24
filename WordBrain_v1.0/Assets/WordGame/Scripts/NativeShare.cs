@@ -7,7 +7,7 @@ public class NativeShare : MonoBehaviour
     public string subject, ShareMessage, url;
     private bool isProcessing = false;
     public string ScreenshotName = "screenshot.png";
-    
+
     public void ShareScreenshotWithText()
     {
         // Share();
@@ -66,14 +66,14 @@ Debug.Log("No sharing set up for this platform.");
 
         //---------------------------------------------------------------------------------------------------------
         //---------------------------------------------------------------------------------------------------------
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSeconds(0.05f);
         //---------------------------------------------------------------------------------------------------------
 
         Application.CaptureScreenshot(ScreenshotName);
-        
+
         //---------------------------------------------------------------------------------------------------------
         //---------------------------------------------------------------------------------------------------------
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.05f);
         //---------------------------------------------------------------------------------------------------------
 
 
@@ -101,7 +101,7 @@ Debug.Log("No sharing set up for this platform.");
 
         //---------------------------------------------------------------------------------------------------------
         //---------------------------------------------------------------------------------------------------------
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.05f);
         //---------------------------------------------------------------------------------------------------------
 
         ShareButton.SetActive(true);

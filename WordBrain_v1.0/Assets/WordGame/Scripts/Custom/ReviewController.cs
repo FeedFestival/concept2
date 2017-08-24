@@ -10,6 +10,7 @@ public class ReviewController : MonoBehaviour
     public GameObject QuestionPanel;
     public GameObject DecisionPanel;
 
+    public bool SeenReviewScreen;
     public bool GaveReview;
     public bool RefusedReview;
     public bool NoLike;
@@ -17,7 +18,8 @@ public class ReviewController : MonoBehaviour
 
     private int _currentCompletedLevelsNumber;
     [SerializeField]
-    public int CurrentCompletedLevelsNumber {
+    public int CurrentCompletedLevelsNumber
+    {
         get { return _currentCompletedLevelsNumber; }
         set
         {
@@ -29,6 +31,12 @@ public class ReviewController : MonoBehaviour
             if (_currentCompletedLevelsNumber <= 7)
             {
                 ShowReviewAtLevel = 7;
+            }
+            else if (SeenReviewScreen == false && _currentCompletedLevelsNumber > 7)
+            {
+                SeenReviewScreen = true;
+                ShowReviewAtLevel = _currentCompletedLevelsNumber + 1;
+                GameManager.Instance.ForceSaveGame();
             }
         }
     }
@@ -57,11 +65,13 @@ public class ReviewController : MonoBehaviour
 
     public void TryStartView(bool force = false)
     {
-        if (GaveReview == false && CurrentCompletedLevelsNumber == ShowReviewAtLevel)
+        if ((GaveReview == false && CurrentCompletedLevelsNumber == ShowReviewAtLevel) || force)
         {
             NoLike = false;
             RefusedReview = false;
-            
+
+            SeenReviewScreen = true;
+
             UiReview.SetActive(true);
         }
     }
@@ -86,23 +96,20 @@ public class ReviewController : MonoBehaviour
     {
         RefusedReview = true;
         ShowReviewAtLevel += 14;
-        Init();
         GameManager.Instance.ForceSaveGame();
     }
 
     public void OnNormal()
     {
-        Application.OpenURL("market://details?id=com.psdartist.aicuvinte/");
+        Application.OpenURL("market://details?id=com.psdartist.aicuvinte");
 
         GaveReview = true;
-        Init();
         GameManager.Instance.ForceSaveGame();
     }
 
     // Update is called once per frame
     void Update()
     {
-
         if (Input.GetKeyDown(KeyCode.X))
         {
             TryStartView(true);
