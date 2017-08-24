@@ -30,29 +30,7 @@ public class LevelInfo
 public class GameManager : SingletonComponent<GameManager>
 {
 	#region Data Classes
-
-	/// <summary>
-	/// Holds infomation about the state of a board that is being play.
-	/// </summary>
-	public class BoardState
-	{
-		public enum TileState
-		{
-			NotUsed,
-			Found,
-			UsedButNotFound
-		}
-
-		public string		wordBoardId;		// Unique id for this board
-		public int			wordBoardSize;		// The size of the board
-		public string[]		words;				// The words in the board
-		public bool[]		foundWords;			// The words that have been found (index in foundWords corresponds to index in words)
-		public TileState[]	tileStates;			// The state of each tile on the board
-		public char[]		tileLetters;		// The letter that goes in each tile on the board
-		public int			nextHintIndex;		// The index into words that indicates which word will have a letter shown when the hint button it clicked
-		public List<int[]>	hintLettersShown;	// The letters that have been shown by hints. (List of int[2] where the first element is the word index and the second element is the letter index)
-	}
-
+    
 	#endregion
 
 	#region Inspector Variables
@@ -140,11 +118,16 @@ public class GameManager : SingletonComponent<GameManager>
 		}
 	}
 
-	#endregion
+    #endregion
 
-	#region Unity Methods
+    #region Unity Methods
 
-	protected override void Awake()
+    [HideInInspector]
+    public DataService DataService;
+
+    public User LoggedUser;
+
+    protected override void Awake()
 	{
 		base.Awake();
 
@@ -152,27 +135,51 @@ public class GameManager : SingletonComponent<GameManager>
 		SavedBoardStates	= new Dictionary<string, BoardState>();
 		CompletedLevels		= new Dictionary<string, bool>();
 
-		// Load any save data
-		if (!LoadSave())
-		{
-			// If there as not save data then set the current hints to the starting hints
-			CurrentHints				= startingHints;
-			ActiveDailyPuzzleIndex		= -1;
-		}
+        DataService = new DataService("Database.db");
+        var firstInstall = Login();
 
-		// Initialize all our important things
-		letterBoard.Initialize();
-		wordGrid.Initialize();
+        // Load any save data
+        if (!LoadSave(firstInstall))
+        {
+            // If there as not save data then set the current hints to the starting hints
+            CurrentHints = startingHints;
+            ActiveDailyPuzzleIndex = -1;
+        }
 
-		// Setup events
-		letterBoard.OnWordFound += OnWordFound;
-	}
+        // Initialize all our important things
+        letterBoard.Initialize();
+        wordGrid.Initialize();
 
-	#endregion
+        // Setup events
+        letterBoard.OnWordFound += OnWordFound;
+    }
 
-	#region Public Methods
+    private bool Login()
+    {
+        LoggedUser = DataService.GetUser();
+        if (LoggedUser == null)
+        {
+            DataService.CreateDB();
 
-	public void StartLevel(string category, int levelIndex)
+            DataService.CreateUser(new User
+            {
+                Id = 1,
+                Name = "THE USER"
+            }
+            );
+            LoggedUser = DataService.GetUser();
+            
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Public Methods
+
+    public void StartLevel(string category, int levelIndex)
 	{
 		ActiveCategory		= category;
 		ActiveLevelIndex	= levelIndex;
@@ -572,7 +579,13 @@ public class GameManager : SingletonComponent<GameManager>
 		jsonObj.Add("activeLevelIndex", ActiveLevelIndex);
 		jsonObj.Add("ActiveDailyPuzzleIndex", ActiveDailyPuzzleIndex);
 		jsonObj.Add("NextDailyPuzzleAt", NextDailyPuzzleAt.ToString("yyyyMMdd"));
-        
+
+        LoggedUser.CurrentHints = CurrentHints;
+        LoggedUser.ActiveCategory = ActiveCategory;
+        LoggedUser.ActiveLevelIndex = ActiveLevelIndex;
+        LoggedUser.ActiveDailyPuzzleIndex = ActiveDailyPuzzleIndex;
+        LoggedUser.NextDailyPuzzleAt = NextDailyPuzzleAt;
+
         // Get all the saved board states
         List<object> savedBoardStatesObj = new List<object>();
 
@@ -583,8 +596,10 @@ public class GameManager : SingletonComponent<GameManager>
 
 		jsonObj.Add("savedBoardStates", savedBoardStatesObj);
 
-		// Get all the completed levels
-		List<object> completedLevelsObj = new List<object>();
+        LoggedUser.SavedBoardStates = SavedBoardStates;
+
+        // Get all the completed levels
+        List<object> completedLevelsObj = new List<object>();
         
 		foreach (KeyValuePair<string, bool> pair in CompletedLevels)
 		{
@@ -595,33 +610,42 @@ public class GameManager : SingletonComponent<GameManager>
 		}
 
 		jsonObj.Add("completedLevels", completedLevelsObj);
+        
+        LoggedUser.CompletedLevels = CompletedLevels;
 
         // review variables
 
-	    //for (var i = ReviewController.Instance.CurrentCompletedLevelsNumber + 1; i < ReviewController.Instance.CurrentCompletedLevelsNumber + 8; i++)
-	    //{
-	    //    if (i%7 == 0)
-	    //    {
-	    //        ReviewController.Instance.ShowReviewAtLevel = i;
-	    //        break;
-	    //    }
-	    //}
+        //for (var i = ReviewController.Instance.CurrentCompletedLevelsNumber + 1; i < ReviewController.Instance.CurrentCompletedLevelsNumber + 8; i++)
+        //{
+        //    if (i%7 == 0)
+        //    {
+        //        ReviewController.Instance.ShowReviewAtLevel = i;
+        //        break;
+        //    }
+        //}
 
         jsonObj.Add("showReviewAtLevels", ReviewController.Instance.ShowReviewAtLevel);
-
         jsonObj.Add("SeenReviewScreen", ReviewController.Instance.SeenReviewScreen);
         jsonObj.Add("gaveReview", ReviewController.Instance.GaveReview);
         jsonObj.Add("refusedReview", ReviewController.Instance.RefusedReview);
         jsonObj.Add("noLike", ReviewController.Instance.NoLike);
+        
+        LoggedUser.ShowReviewAtLevel = ReviewController.Instance.ShowReviewAtLevel;
+        LoggedUser.SeenReviewScreen = ReviewController.Instance.SeenReviewScreen;
+        LoggedUser.GaveReview = ReviewController.Instance.GaveReview;
+        LoggedUser.RefusedReview = ReviewController.Instance.RefusedReview;
+        LoggedUser.NoLike = ReviewController.Instance.NoLike;
 
         // Now convert the jsonObj to a json string and save it to the save file
         System.IO.File.WriteAllText(SaveDataPath, Utilities.ConvertToJsonString(jsonObj));
+
+        DataService.UpdateUser(LoggedUser);
 	}
 
 	/// <summary>
 	/// Loads the save game
 	/// </summary>
-	private bool LoadSave()
+	private bool LoadSave(bool firstInstall = false)
 	{
 		if (File.Exists(SaveDataPath))
 		{
@@ -633,31 +657,51 @@ public class GameManager : SingletonComponent<GameManager>
 
             // review variables
             ReviewController.Instance.ShowReviewAtLevel = json["showReviewAtLevels"].AsInt;
-		    if (ReviewController.Instance.ShowReviewAtLevel == 0)
+            if (ReviewController.Instance.ShowReviewAtLevel == 0)
 		        ReviewController.Instance.ShowReviewAtLevel = 7;
-
+            
             ReviewController.Instance.SeenReviewScreen = json["SeenReviewScreen"].AsBool;
             ReviewController.Instance.GaveReview = json["gaveReview"].AsBool;
             ReviewController.Instance.RefusedReview = json["refusedReview"].AsBool;
             ReviewController.Instance.NoLike = json["noLike"].AsBool;
 
+            if (firstInstall)
+            {
+                LoggedUser.CurrentHints = CurrentHints;
+                LoggedUser.ShowReviewAtLevel = ReviewController.Instance.ShowReviewAtLevel;
+                LoggedUser.SeenReviewScreen = ReviewController.Instance.SeenReviewScreen;
+                LoggedUser.GaveReview = ReviewController.Instance.GaveReview;
+                LoggedUser.RefusedReview = ReviewController.Instance.RefusedReview;
+                LoggedUser.NoLike = ReviewController.Instance.NoLike;
+            }
+
             // Parse the saved board states
             JSONArray savedBoardStatesJson = json["savedBoardStates"].AsArray;
 			SavedBoardStates = new Dictionary<string, BoardState>(savedBoardStatesJson.Count);
-
-			for (int i = 0; i < savedBoardStatesJson.Count; i++)
+            
+            for (int i = 0; i < savedBoardStatesJson.Count; i++)
 			{
 				BoardState boardState = CreateBoardStateFromJson(savedBoardStatesJson[i]);
 				SavedBoardStates.Add(boardState.wordBoardId, boardState);
 			}
 
-			// Get the active category and level index
-			ActiveCategory				= json["activeCategory"].Value;
+            if (firstInstall)
+                LoggedUser.SavedBoardStates = SavedBoardStates;
+
+            // Get the active category and level index
+            ActiveCategory				= json["activeCategory"].Value;
 			ActiveLevelIndex			= json["activeLevelIndex"].AsInt;
 			ActiveDailyPuzzleIndex		= json["ActiveDailyPuzzleIndex"].AsInt;
 
-			// Get the next daily puzzle at time
-			string time = json["NextDailyPuzzleAt"].Value;
+            if (firstInstall)
+            {
+                LoggedUser.ActiveCategory = ActiveCategory;
+                LoggedUser.ActiveLevelIndex = ActiveLevelIndex;
+                LoggedUser.ActiveDailyPuzzleIndex = ActiveDailyPuzzleIndex;
+            }
+
+            // Get the next daily puzzle at time
+            string time = json["NextDailyPuzzleAt"].Value;
 
 			if (string.IsNullOrEmpty(time))
 			{
@@ -668,15 +712,23 @@ public class GameManager : SingletonComponent<GameManager>
 				NextDailyPuzzleAt = System.DateTime.ParseExact(time, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
 			}
 
-			// Parse the completed levels
-			JSONArray completedLevelsJson = json["completedLevels"].AsArray;
+            if (firstInstall)
+                LoggedUser.NextDailyPuzzleAt = NextDailyPuzzleAt;
+
+            // Parse the completed levels
+            JSONArray completedLevelsJson = json["completedLevels"].AsArray;
 
 			for (int i = 0; i < completedLevelsJson.Count; i++)
 			{
 				CompletedLevels[completedLevelsJson[i].Value] = true;
 			}
 
-			return true;
+            if (firstInstall)
+                LoggedUser.CompletedLevels = CompletedLevels;
+
+            DataService.UpdateUser(LoggedUser);
+            
+            return true;
 		}
 
 		return false;

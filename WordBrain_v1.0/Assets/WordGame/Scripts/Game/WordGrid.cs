@@ -63,7 +63,7 @@ public class WordGrid : MonoBehaviour
 		SetupTileContainer();
 	}
 
-	public void Setup(GameManager.BoardState boardState)
+	public void Setup(BoardState boardState)
 	{
 		Reset();
 

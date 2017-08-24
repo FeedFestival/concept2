@@ -102,7 +102,7 @@ public class LetterBoard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         RefreshButtonHighlight.SetActive(false);
     }
 
-    public void Setup(GameManager.BoardState boardState)
+    public void Setup(BoardState boardState)
     {
         // Reset the game tiles so they can be selected again
         Reset();
@@ -140,7 +140,7 @@ public class LetterBoard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
                 switch (boardState.tileStates[tileIndex])
                 {
-                    case GameManager.BoardState.TileState.UsedButNotFound:
+                    case BoardState.TileState.UsedButNotFound:
                         LetterTile letterTile = GameManager.Instance.LetterTilePool.GetObject().GetComponent<LetterTile>();
 
                         letterTile.TileIndex = tileIndex;
